@@ -4,7 +4,8 @@ author: "Marie-Louise Timcke"
 date: "23. Februar 2016"
 output: html_document
 ---
-##Markdown of the tutorial on http://journocode.com/2016/01/28/your-first-choropleth-map/
+##Markdown of the tutorial "Your first choropleth map with R"
+http://journocode.com/2016/01/28/your-first-choropleth-map/
 
 When it comes to data journalism, visualizing your data isn't what it's all about. Getting and cleaning your data, analyzing and verifying your findings is way more important.
 
@@ -20,20 +21,20 @@ First of all you need to read a kml-file into R. kml-files are shape files conta
 Start RStudio. If you haven't installed it yet, have a look at our first R Tutorial post. After starting RStudio, open a new R script and save it to the right directory. For example, if your "journocode"-directory was placed on your desktop (and your Username was MarieLou), type
 
 ```{r}
-setwd("/Users/MarieLou/Desktop/journocode")
+setwd("/Users/MarieLou/Desktop")
 ```
 
 Remember to use a normal slash (/) in your file path instead of a backslash. Now, we can read the shape file directly into R. If you don't use our example data, try open your shape file with a text editor first to look for the layer name! 
 
 Let's load the data into R. We'll do this with a function from the rgdal-package.
 
-```{r}
+```{r, results = 'hide'}
 if(!require(rgdal)) {
   install.packages("rgdal", repos="http://cran.us.r-project.org")
   require(rgdal)
 }
 
-dortmund <- readOGR("Statistische Bezirke.kml", #name of file
+dortmund <- readOGR("journocode/Statistische Bezirke.kml", #name of file
                                                 #if your browser adds a .txt after downloading the file
                                                 #you can add it here, too!
                     "Statistische_Bezirke",     #name of layer
@@ -46,7 +47,7 @@ If you get an Error that says "Cannot open data source", chances are there's som
 Did it work? Try to plot the polygons with the generic plot() function:
 
 ```{r}
-plot(dortmund)
+#plot(dortmund)
 ```
 
 You should now see the black outlines of your polygons. Neat, isn't it?
@@ -56,8 +57,8 @@ Next, we`ll need a little data to add to our map. To show you how to build a mul
 The data contains information on the percentage of 18 to 25 year olds living in Dortmund in 2000 and 2014. Download the files and save them to your journocode directory. Make sure they're still named student1 and student2.
 
 ```{r}
-student1 <- read.csv("student1.csv", encoding="latin1", sep=",", dec=".")
-student2 <- read.csv("student2.csv", encoding="latin1", sep=",", dec=".")
+student1 <- read.csv("journocode/student1.csv", encoding="latin1", sep=",", dec=".")
+student2 <- read.csv("journocode/student2.csv", encoding="latin1", sep=",", dec=".")
 ```
 
 This can be tricky sometimes: For our data, the encoding is "latin1" and the separation marks are commas. Open the csv files with a text editor to check if your separator is a comma, a semicolon or even a slash.
@@ -125,9 +126,9 @@ mymap <- leaflet() %>%
   addProviderTiles("Esri.WorldGrayCanvas",
                    options = tileOptions(minZoom=10, maxZoom=16)) %>% #"freezing" the window
 
-#The %>% operator is special to the leaflet package. Similar to the "+" in ggplot, it's used to link two #functions together. So remember: If you have a "%>%" opearator at the end of the line, R will expect more #input from you.
+#The %>% operator is special to the leaflet package. Similar to the "+" in ggplot, it's used to link two functions together. So remember: If you have a "%>%" opearator at the end of the line, R will expect more input from you.
 
-#The call to the function leaflet() starts the mapping procedd. The Provider Tile is your map base and #background. If you don't want to use the grey Tile in the example, have a look at this page and choose your #own. Don't worry if no map appears yet. With leaflet, you won't see the actual map right away. First we'll #add the polygon layers and the popups we've defined to our map:
+#The call to the function leaflet() starts the mapping procedd. The Provider Tile is your map base and background. If you don't want to use the grey Tile in the example, have a look at this page and choose your own. Don't worry if no map appears yet. With leaflet, you won't see the actual map right away. First we'll add the polygon layers and the popups we've defined to our map:
 
 addPolygons(data = dortmund, 
             fillColor = ~palette(student1$Anteil),  ## we want the polygon filled with 
@@ -183,8 +184,8 @@ print(mymap)
 Congratulations! You made your first multilayer choropleth with R! Now have fun building multilayer maps of your own city/country or even the whole world! If you want to publish your map, make sure you have the "htmlwidgets" package installed and add the following code to your script:
 
 ```{r}
-library(htmlwidgets)
-saveWidget(mymap, file = "mymap.html", selfcontained = F)
+#library(htmlwidgets)
+#saveWidget(mymap, file = "mymap.html", selfcontained = F)
 ```
 
 This will create a directory named "mymap_files" and a "mymap.html"-file. Save these two files in the same directory and load that on to your server. É voilà: Your map is online!
