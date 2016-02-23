@@ -1,0 +1,192 @@
+---
+title: "Your first choropleth map with R"
+author: "Marie-Louise Timcke"
+date: "23. Februar 2016"
+output: html_document
+---
+##Markdown of the tutorial on http://journocode.com/2016/01/28/your-first-choropleth-map/
+
+When it comes to data journalism, visualizing your data isn't what it's all about. Getting and cleaning your data, analyzing and verifying your findings is way more important.
+
+Still, an interactive eye-catcher holding interesting information will definitely not hurt your data story. Plus, you can use graphics for a visual analysis, too.
+
+Here, we'll show you how to build a choropleth map, where your data is visualized as colored polygon areas like countries and states.
+We will code a multilayer map on Dortmunds students as an example. You'll be able to switch between layered data from different years. The popups hold additional information on Dortmunds districts.
+
+###Now for the data
+
+First of all you need to read a kml-file into R. kml-files are shape files containing geodata. With a bit of googling, you'll find shape files for your city/state/country. For this example, we'll use this data on Dortmunds districts. Right click the link and save the file. Download the kml-file and save it to a new directory named "journocode" (or anything you want, really, but we'll work with this for now).
+
+Start RStudio. If you haven't installed it yet, have a look at our first R Tutorial post. After starting RStudio, open a new R script and save it to the right directory. For example, if your "journocode"-directory was placed on your desktop (and your Username was MarieLou), type
+
+```{r}
+setwd("/Users/MarieLou/Desktop/journocode")
+```
+
+Remember to use a normal slash (/) in your file path instead of a backslash. Now, we can read the shape file directly into R. If you don't use our example data, try open your shape file with a text editor first to look for the layer name! 
+
+Let's load the data into R. We'll do this with a function from the rgdal-package.
+
+```{r}
+if(!require(rgdal)) {
+  install.packages("rgdal", repos="http://cran.us.r-project.org")
+  require(rgdal)
+}
+
+dortmund <- readOGR("Statistische Bezirke.kml", #name of file
+                                                #if your browser adds a .txt after downloading the file
+                                                #you can add it here, too!
+                    "Statistische_Bezirke",     #name of layer
+                     encoding="utf-8"           #if our data contains german Umlauts like ä, ö and ü
+)
+```
+
+If you get an Error that says "Cannot open data source", chances are there's something wrong with your file name. Check that your working directory is properly set and that the file name is correct. Some browsers will change the .kml fily type to .txt, or even just add the .txt ending so you get "filename.kml.txt". You'll usually find the "layer" argument in your text file, named something like "name" or "id", as shown above.
+
+Did it work? Try to plot the polygons with the generic plot() function:
+
+```{r}
+plot(dortmund)
+```
+
+You should now see the black outlines of your polygons. Neat, isn't it?
+
+Next, we`ll need a little data to add to our map. To show you how to build a multilayer map, we will use two different csv files:   student1 & student2
+
+The data contains information on the percentage of 18 to 25 year olds living in Dortmund in 2000 and 2014. Download the files and save them to your journocode directory. Make sure they're still named student1 and student2.
+
+```{r}
+student1 <- read.csv("student1.csv", encoding="latin1", sep=",", dec=".")
+student2 <- read.csv("student2.csv", encoding="latin1", sep=",", dec=".")
+```
+
+This can be tricky sometimes: For our data, the encoding is "latin1" and the separation marks are commas. Open the csv files with a text editor to check if your separator is a comma, a semicolon or even a slash.
+
+If everything worked out for you, celebrate a little! You're a big step closer to your multilayer map!
+
+
+###Now for the interactive part
+
+After looking through your data and analyzing it, you will now have some important information on how many values you have, which are the smallest and the biggest. For our example, we did that for you:
+
+The highest value is 26%, so we can now think of a color scale from 0 to 26 to fill in our map. There are different statistical ways to decide what classes we want to divide our data into. For this mapping exercise, we will simply take eight classes: 0-5, 5-8, 8-10, 10-12, 12-14, 14-18, 18-24 and 24-26.
+
+For every class, we want our map to fill the polygons in a different color. We'll use a color vector generated with ColorBrewer here. Just copy the colour code you want, put it in a vector and replace it in the code. To paste the colors to the classes, use the function colorBin(). This is were you'll need the package leaflet, which we will use to build our map. Install it, if you haven't already.
+
+```{r}
+if(!require(leaflet)) {
+  install.packages("leaflet", repos="http://cran.us.r-project.org")
+  require(leaflet)
+}
+
+palette <- colorBin(c('#fee0d2',  #an example color scheme. you can substitute your own colors
+                      '#fcbba1',
+                      '#fc9272',
+                      '#fb6a4a',
+                      '#ef3b2c',
+                      '#cb181d',
+                      '#a50f15',
+                      '#67000d'), 
+                     bins = c(0, 5, 8, 10, 12, 14, 18, 24, 26))
+```
+
+Next up is the little infowindow we want to pop up when we click on the map. As you can see, I used some html code to specify some parameters for the first popup. For the second popup, I used a simpler way.
+
+```{r}
+popup1 <- paste0("<span style='color: #7f0000'><strong>18-25 year olds 2000</strong></span>",
+                      "<br><span style='color: salmon;'><strong>District: </strong></span>", 
+                      student1$Bezirk, 
+                      "<br><span style='color: salmon;'><strong>relative amount: </strong></span>", 
+                      student1$Anteil
+                      ,"<br><span style='color: salmon;'><strong>absolute amount: </strong></span>", 
+                      student1$X2000   
+)
+
+popup2 <- paste0("18-25 year olds 2014",
+                      "<br>District: ",             
+                      student2$Bezirk,         #column containing the district names
+                      "<br>relative amount: ", 
+                      student2$Anteil          #column that contains the relative amount data
+                      ,"<br>absolute amount: ", 
+                      student2$X2014           #column that contains the absolute amount data
+)
+```
+
+paste0() does the same thing as paste() but with no default separator. Check ?paste0 for more info. If something doesn't work, check the punctuation!
+
+
+###Now for the map
+
+After that, we'll start right away with puzzling together all the parts we need:
+
+```{r}
+mymap <- leaflet() %>% 
+
+  addProviderTiles("Esri.WorldGrayCanvas",
+                   options = tileOptions(minZoom=10, maxZoom=16)) %>% #"freezing" the window
+
+#The %>% operator is special to the leaflet package. Similar to the "+" in ggplot, it's used to link two #functions together. So remember: If you have a "%>%" opearator at the end of the line, R will expect more #input from you.
+
+#The call to the function leaflet() starts the mapping procedd. The Provider Tile is your map base and #background. If you don't want to use the grey Tile in the example, have a look at this page and choose your #own. Don't worry if no map appears yet. With leaflet, you won't see the actual map right away. First we'll #add the polygon layers and the popups we've defined to our map:
+
+addPolygons(data = dortmund, 
+            fillColor = ~palette(student1$Anteil),  ## we want the polygon filled with 
+            ## one of the palette-colors
+            ## according to the value in student1$Anteil
+            fillOpacity = 0.6,         ## how transparent do you want the polygon to be?
+            color = "darkgrey",       ## color of borders between districts
+            weight = 1.5,            ## width of borders
+            popup = popup1,         ## which popup?
+            group="<span style='color: #7f0000; font-size: 11pt'><strong>2000</strong></span>")%>%  
+            ## which group?
+            ## the group's name has to be the same as later in "baseGroups", where we define 
+            ## the groups for the Layerscontrol. Because for this layer I wanted a specific 
+            ## color and size, the group name includes some font arguments.  
+
+## for the second layer we mix things up a little bit, so you'll see the difference in the map!
+addPolygons(data = dortmund, 
+            fillColor = ~palette(student2$Anteil), 
+            fillOpacity = 0.2, 
+            color = "white", 
+            weight = 2.0, 
+            popup = popup2, 
+            group="2014")%>%
+  
+#In our map, we want to be able to switch layers by clicking on a layer control panel with the group names. #We'll code that now:
+
+addLayersControl(
+    baseGroups = c("<span style='color: #7f0000; font-size: 11pt'><strong>2000</strong></span>", ## group 1
+                   "2014" ## group 2
+    ),
+    options = layersControlOptions(collapsed = FALSE))%>% ## we want our control to be seen right away
+
+#Next, we want to add a thin color legend that shows the minimum and maximum value and the palette colors
+
+addLegend(position = 'topleft', ## choose bottomleft, bottomright, topleft or topright
+           colors = c('#fee0d2',
+                      '#fcbba1',
+                      '#fc9272',
+                      '#fb6a4a',
+                      '#ef3b2c',
+                      '#cb181d',
+                      '#a50f15',
+                      '#67000d'), 
+           labels = c('0%',"","","","","","",'26%'),  ## legend labels (only min and max)
+           opacity = 0.6,      ##transparency again
+           title = "relative<br>amount")   ## title of the legend
+
+
+#The big moment: did it work? No mistake with the brackets or the punctuation? You'll find out by typing:
+print(mymap)
+```
+
+Congratulations! You made your first multilayer choropleth with R! Now have fun building multilayer maps of your own city/country or even the whole world! If you want to publish your map, make sure you have the "htmlwidgets" package installed and add the following code to your script:
+
+```{r}
+library(htmlwidgets)
+saveWidget(mymap, file = "mymap.html", selfcontained = F)
+```
+
+This will create a directory named "mymap_files" and a "mymap.html"-file. Save these two files in the same directory and load that on to your server. É voilà: Your map is online!
+
+If you publish a map based on our tutorial, feel free to link to our webpage and tell your fellows! We'd be delighted!
